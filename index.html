@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life Grid</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+body { margin: 0; }
+/* Layout: one 12x12 board beside a control column; stacks on phones. Graph-paper palette. */
+:root {
+  --bg: #eef1f5;
+  --panel: #ffffff;
+  --fg: #16202e;
+  --muted: #5d6b7e;
+  --line: #cfd6e0;
+  --cell-off: #f6f8fb;
+  --cell-on: #1b6b5a;
+  --accent: #1b6b5a;
+  --accent-fg: #ffffff;
+  --danger: #b3382c;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1620; --panel: #172230; --fg: #e6ecf3; --muted: #93a2b5; --line: #2b3b4f;
+    --cell-off: #121c28; --cell-on: #4fd1b0; --accent: #4fd1b0; --accent-fg: #07201a; --danger: #ff8a7a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1620; --panel: #172230; --fg: #e6ecf3; --muted: #93a2b5; --line: #2b3b4f;
+  --cell-off: #121c28; --cell-on: #4fd1b0; --accent: #4fd1b0; --accent-fg: #07201a; --danger: #ff8a7a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 62rem; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 16px; }
+h1 { font-family: var(--font-display); font-size: 1.75rem; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.rule { font-family: var(--font-mono); font-size: 0.8rem; color: var(--muted); }
+main { display: grid; grid-template-columns: minmax(0, 30rem) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 760px) { main { grid-template-columns: minmax(0, 1fr); } }
+.board-box { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#board {
+  display: grid; grid-template-columns: repeat(12, 1fr); gap: 2px; padding: 2px;
+  background: var(--line); border: 1px solid var(--line); border-radius: 4px;
+  aspect-ratio: 1; width: 100%; max-width: 100%; touch-action: none; user-select: none;
+}
+.cell { background: var(--cell-off); border: 0; padding: 0; margin: 0; border-radius: 1px; cursor: pointer; }
+.cell.on { background: var(--cell-on); }
+.cell:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; }
+.stats { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--fg); font-weight: 500; }
+.side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+h2 { font-family: var(--font-display); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: inherit; font-weight: 500; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 7px 14px; cursor: pointer; }
+button:hover:not(:disabled) { border-color: var(--fg); }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); min-width: 5.5rem; }
+button.danger { color: var(--danger); }
+.slider { display: flex; align-items: center; gap: 12px; }
+.slider input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.slider output { font-family: var(--font-mono); font-size: 0.85rem; min-width: 5.5rem; text-align: right; font-variant-numeric: tabular-nums; }
+input[type="text"] { font: inherit; flex: 1; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg); }
+ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+li { display: flex; align-items: center; gap: 8px; justify-content: space-between; padding: 6px 0; border-top: 1px solid var(--line); min-width: 0; }
+li:first-child { border-top: 0; }
+li .nm { min-width: 0; overflow-wrap: anywhere; }
+li .meta { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); display: block; }
+li .acts { display: flex; gap: 6px; flex-shrink: 0; }
+li button { padding: 4px 10px; font-size: 0.85rem; }
+.empty { color: var(--muted); font-size: 0.9rem; }
+.msg { font-size: 0.85rem; color: var(--muted); min-height: 1.3em; margin: 0; }
+.hint { font-size: 0.85rem; color: var(--muted); margin: 0; }
+@media (prefers-reduced-motion: no-preference) { .cell { transition: background 80ms; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Life Grid</h1>
+    <span class="rule">Conway's rules · 12×12 · cells outside the grid are dead</span>
+  </header>
+  <main>
+    <div class="board-box">
+      <div id="board" role="grid" aria-label="Game of Life board, 12 by 12"></div>
+      <div class="stats"><span>Generation <b id="gen">0</b></span><span>Alive <b id="pop">0</b></span></div>
+      <p class="hint">Click or drag to draw. Editing works while it runs.</p>
+    </div>
+    <div class="side">
+      <section aria-label="Run controls">
+        <h2>Run</h2>
+        <div class="row">
+          <button id="run" class="primary" type="button">Run</button>
+          <button id="step" type="button">Step</button>
+          <button id="undo" type="button">Undo</button>
+          <button id="reset" type="button" class="danger">Reset</button>
+        </div>
+        <div class="slider">
+          <label for="rate">Speed</label>
+          <input id="rate" type="range" min="1" max="20" value="5">
+          <output id="rateOut" for="rate">5 ticks/s</output>
+        </div>
+      </section>
+      <section aria-label="Starting patterns">
+        <h2>Start from a pattern</h2>
+        <div class="row" id="presets"></div>
+      </section>
+      <section aria-label="Saved setups">
+        <h2>Save and load</h2>
+        <form class="row" id="saveForm">
+          <input id="saveName" type="text" placeholder="Name this setup" maxlength="40" aria-label="Setup name">
+          <button type="submit" class="primary" style="min-width:0">Save</button>
+        </form>
+        <p class="msg" id="msg" role="status"></p>
+        <ul id="saves"></ul>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  var N = 12, KEY = "lifegrid.saves.v1", MAXH = 200;
+  var cells = new Array(N * N).fill(0), gen = 0, history = [], timer = null, painting = null, dirty = false;
+  var memStore = null;
+
+  // Pure rules engine: finite grid, outside is dead.
+  function nextGen(c) {
+    var out = new Array(N * N).fill(0);
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
+      var n = 0;
+      for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+        if (!dx && !dy) continue;
+        var xx = x + dx, yy = y + dy;
+        if (xx >= 0 && yy >= 0 && xx < N && yy < N) n += c[yy * N + xx];
+      }
+      var alive = c[y * N + x];
+      out[y * N + x] = (alive && (n === 2 || n === 3)) || (!alive && n === 3) ? 1 : 0;
+    }
+    return out;
+  }
+  window.life = { nextGen: nextGen, N: N };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var board = $("board"), els = [];
+  for (var i = 0; i < N * N; i++) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "cell"; b.dataset.i = i;
+    b.setAttribute("aria-label", "Row " + (Math.floor(i / N) + 1) + ", column " + (i % N + 1));
+    b.setAttribute("aria-pressed", "false");
+    board.appendChild(b); els.push(b);
+  }
+
+  function render() {
+    var pop = 0;
+    for (var i = 0; i < cells.length; i++) {
+      els[i].classList.toggle("on", !!cells[i]);
+      els[i].setAttribute("aria-pressed", cells[i] ? "true" : "false");
+      pop += cells[i];
+    }
+    $("gen").textContent = gen; $("pop").textContent = pop;
+    $("undo").disabled = history.length === 0;
+    $("run").textContent = timer ? "Pause" : "Run";
+  }
+  function push() {
+    history.push({ c: cells.slice(), g: gen });
+    if (history.length > MAXH) history.shift();
+  }
+  function step() { push(); cells = nextGen(cells); gen++; render(); }
+  function rate() { return +$("rate").value; }
+  function startTimer() { stopTimer(); timer = setInterval(step, 1000 / rate()); }
+  function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+  $("run").onclick = function () { if (timer) stopTimer(); else startTimer(); render(); };
+  $("step").onclick = function () { stopTimer(); step(); };
+  $("undo").onclick = function () {
+    var h = history.pop(); if (!h) return;
+    cells = h.c; gen = h.g; render();
+  };
+  $("reset").onclick = function () { stopTimer(); push(); cells = new Array(N * N).fill(0); gen = 0; render(); };
+  $("rate").oninput = function () {
+    $("rateOut").textContent = rate() + " ticks/s";
+    if (timer) startTimer();
+  };
+
+  // Painting with click or drag; one undo entry per stroke.
+  function idxFrom(e) {
+    var t = document.elementFromPoint(e.clientX, e.clientY);
+    return t && t.dataset && t.dataset.i !== undefined && board.contains(t) ? +t.dataset.i : -1;
+  }
+  function paint(i) {
+    if (i < 0 || cells[i] === painting) return;
+    if (!dirty) { push(); dirty = true; }
+    cells[i] = painting; render();
+  }
+  board.addEventListener("pointerdown", function (e) {
+    var i = idxFrom(e); if (i < 0) return;
+    e.preventDefault();
+    painting = cells[i] ? 0 : 1; dirty = false;
+    try { board.setPointerCapture(e.pointerId); } catch (_) {}
+    paint(i);
+  });
+  board.addEventListener("pointermove", function (e) { if (painting !== null) paint(idxFrom(e)); });
+  function endPaint() { painting = null; }
+  board.addEventListener("pointerup", endPaint);
+  board.addEventListener("pointercancel", endPaint);
+  board.addEventListener("keydown", function (e) {
+    if (e.key === " " || e.key === "Enter") {
+      var i = +e.target.dataset.i; if (isNaN(i)) return;
+      e.preventDefault(); push(); cells[i] = cells[i] ? 0 : 1; render();
+    }
+  });
+
+  // Presets, placed on an empty board.
+  var PRESETS = {
+    "Blinker": [[5,4],[5,5],[5,6]],
+    "Glider": [[1,0],[2,1],[0,2],[1,2],[2,2]],
+    "Block": [[5,5],[6,5],[5,6],[6,6]],
+    "Toad": [[5,5],[6,5],[7,5],[4,6],[5,6],[6,6]]
+  };
+  Object.keys(PRESETS).forEach(function (name) {
+    var b = document.createElement("button"); b.type = "button"; b.textContent = name;
+    b.onclick = function () {
+      stopTimer(); push(); cells = new Array(N * N).fill(0); gen = 0;
+      PRESETS[name].forEach(function (p) { cells[p[1] * N + p[0]] = 1; });
+      render(); say("Loaded " + name + ".");
+    };
+    $("presets").appendChild(b);
+  });
+
+  // Saves: localStorage when available, in-memory otherwise.
+  function readSaves() {
+    try { var r = localStorage.getItem(KEY); if (r) return JSON.parse(r); return []; }
+    catch (_) { return memStore || []; }
+  }
+  function writeSaves(list) {
+    try { localStorage.setItem(KEY, JSON.stringify(list)); return true; }
+    catch (_) { memStore = list; return false; }
+  }
+  function say(t) { $("msg").textContent = t; }
+  function encode(c) { return c.join(""); }
+  function decode(s) { return s.split("").map(Number); }
+
+  function renderSaves() {
+    var list = readSaves(), ul = $("saves"); ul.innerHTML = "";
+    if (!list.length) {
+      var li = document.createElement("li"); li.className = "empty";
+      li.textContent = "No saved setups yet. Draw something and name it above."; ul.appendChild(li); return;
+    }
+    list.forEach(function (s, idx) {
+      var li = document.createElement("li");
+      var nm = document.createElement("span"); nm.className = "nm";
+      nm.textContent = s.name;
+      var meta = document.createElement("span"); meta.className = "meta";
+      meta.textContent = "gen " + s.gen + " · " + s.cells.split("").filter(function (c) { return c === "1"; }).length + " alive";
+      nm.appendChild(meta);
+      var acts = document.createElement("span"); acts.className = "acts";
+      var load = document.createElement("button"); load.type = "button"; load.textContent = "Load";
+      load.onclick = function () {
+        stopTimer(); push(); cells = decode(s.cells); gen = s.gen; render(); say("Loaded " + s.name + ".");
+      };
+      var del = document.createElement("button"); del.type = "button"; del.textContent = "Delete"; del.className = "danger";
+      del.onclick = function () {
+        if (del.dataset.arm !== "1") { del.dataset.arm = "1"; del.textContent = "Confirm"; return; }
+        var l = readSaves(); l.splice(idx, 1); writeSaves(l); renderSaves(); say("Deleted " + s.name + ".");
+      };
+      acts.appendChild(load); acts.appendChild(del);
+      li.appendChild(nm); li.appendChild(acts); ul.appendChild(li);
+    });
+  }
+  $("saveForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = $("saveName").value.trim() || ("Setup " + (readSaves().length + 1));
+    var list = readSaves().filter(function (s) { return s.name !== name; });
+    list.unshift({ name: name, cells: encode(cells), gen: gen });
+    var ok = writeSaves(list);
+    $("saveName").value = ""; renderSaves();
+    say(ok ? "Saved " + name + "." : "Saved " + name + " for this visit only. Browser storage is unavailable.");
+  });
+
+  // Start with a glider so the board shows something.
+  PRESETS["Glider"].forEach(function (p) { cells[(p[1] + 1) * N + p[0] + 1] = 1; });
+  render(); renderSaves();
+})();
+</script>
+</body>
+</html>
